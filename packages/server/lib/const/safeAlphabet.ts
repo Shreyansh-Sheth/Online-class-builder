@@ -1,0 +1,1 @@
+export const SafeAlphabet = "ABCDEFGHJKMNPQRSTWXYZ23456789";

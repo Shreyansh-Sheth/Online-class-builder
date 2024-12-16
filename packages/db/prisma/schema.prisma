@@ -1,0 +1,353 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum USER_STATUS {
+  ACTIVE
+  INACTIVE
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id              String       @id @default(cuid())
+  name            String?
+  email           String       @unique
+  emailVerified   DateTime?
+  image           String?
+  isEmailVerified Boolean      @default(false)
+  status          USER_STATUS  @default(ACTIVE)
+  isDeleted       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @default(now()) @updatedAt
+  StoreFront      StoreFront[]
+  Kyc             Kyc?
+  Account         Account[]
+  Session         Session[]
+}
+
+model Kyc {
+  id     String    @id @default(cuid())
+  user   User      @relation(fields: [userId], references: [id])
+  data   Json
+  status KycStatus
+  reason String?
+  userId String    @unique
+}
+
+enum KycStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum StoreFrontStatus {
+  LIVE
+  INACTIVE
+  HOLD
+}
+
+model StoreFront {
+  id                                   String           @id @default(cuid())
+  admin                                User             @relation(fields: [userId], references: [id])
+  name                                 String
+  description                          String?
+  status                               StoreFrontStatus @default(INACTIVE)
+  theme                                Theme            @relation(fields: [themeId], references: [id])
+  iconUrl                              File?            @relation(fields: [fileKey], references: [key])
+  storeFrontPaymentProcessingDetailsId String?          @unique
+
+  isDeleted                          Boolean                             @default(false)
+  createdAt                          DateTime                            @default(now())
+  updatedAt                          DateTime                            @default(now()) @updatedAt
+  userId                             String
+  Courses                            Courses[]
+  Domain                             Domain[]
+  themeId                            String                              @unique
+  fileKey                            String?
+  pageBuilderJson                    Json?
+  EndUser                            EndUser[]
+  storeFrontPaymentProcessingDetails storeFrontPaymentProcessingDetails? @relation(fields: [storeFrontPaymentProcessingDetailsId], references: [id])
+  purchase                           Purchase[]
+}
+
+model storeFrontPaymentProcessingDetails {
+  id                String      @id @default(cuid())
+  percentCut        Int         @default(20)
+  storeFrontId      String      @unique
+  StoreFront        StoreFront?
+  razorpayAccountId String?
+}
+
+model Theme {
+  id         String      @id @default(cuid())
+  color      String
+  StoreFront StoreFront?
+}
+
+model Domain {
+  name         String     @id @unique
+  isPremium    Boolean    @default(false)
+  storeFront   StoreFront @relation(fields: [storeFrontId], references: [id])
+  isPrimary    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @default(now()) @updatedAt
+  storeFrontId String
+
+  @@unique([isPrimary, storeFrontId])
+}
+
+enum CourseStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Courses {
+  id     String       @id @default(cuid())
+  name   String
+  status CourseStatus @default(INACTIVE)
+  disc   String?
+  price  Int          @default(0)
+
+  storeFront StoreFront @relation(fields: [storeFrontId], references: [id])
+  posterImg  File       @relation(fields: [fileKey], references: [key])
+
+  isDeleted         Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
+  storeFrontId      String
+  CourseContentJSON CourseContentJSON?
+  fileKey           String
+  Chapter           Chapter[]
+  Content           Content[]
+  Notes             Notes[]
+  Downloadable      Downloadable[]
+  Video             Video[]
+  purchase          Purchase[]
+}
+
+enum CONTENT_STATUS {
+  DISABLE
+  ENABLE
+}
+
+enum CONTENT_TYPE {
+  CHAPTER
+  VIDEO
+  NOTES
+  DOWNLOADABLE
+  QUIZ
+}
+
+model CourseContentJSON {
+  course    Courses @relation(fields: [coursesId], references: [id])
+  coursesId String  @unique
+  json      Json?
+}
+
+model Content {
+  id        String         @id @default(cuid())
+  type      CONTENT_TYPE
+  status    CONTENT_STATUS @default(DISABLE)
+  isDemo    Boolean        @default(false)
+  course    Courses        @relation(fields: [coursesId], references: [id])
+  coursesId String
+
+  chapter   Chapter? @relation(fields: [chapterId], references: [id])
+  chapterId String?  @unique
+
+  notes   Notes?  @relation(fields: [notesId], references: [id])
+  notesId String? @unique
+
+  downloadable   Downloadable? @relation(fields: [downloadableId], references: [id])
+  downloadableId String?       @unique
+
+  video   Video?  @relation(fields: [videoId], references: [id])
+  videoId String? @unique
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now()) @updatedAt
+  content_enduser content_enduser[]
+}
+
+enum STREAM_STATUS {
+  PROCESSING
+  READY_TO_STREAM
+  ERROR
+}
+
+model Video {
+  id           String        @id @default(cuid())
+  name         String
+  originalFile File          @relation(fields: [fileKey], references: [key])
+  course       Courses       @relation(fields: [coursesId], references: [id])
+  description  String?
+  coursesId    String
+  Content      Content?
+  contentId    String?
+  fileKey      String
+  StreamStatus STREAM_STATUS @default(PROCESSING)
+  streamUid    String        @unique
+
+  @@index([streamUid], name: "streamUid")
+}
+
+model Chapter {
+  id          String   @id @default(cuid())
+  name        String
+  course      Courses  @relation(fields: [coursesId], references: [id])
+  description String?
+  coursesId   String
+  contentId   String?
+  Content     Content?
+}
+
+model Notes {
+  id        String   @id @default(cuid())
+  name      String
+  course    Courses  @relation(fields: [coursesId], references: [id])
+  note      String
+  coursesId String
+  contentId String?
+  Content   Content?
+}
+
+model Downloadable {
+  id        String   @id @default(cuid())
+  name      String
+  course    Courses  @relation(fields: [coursesId], references: [id])
+  files     File[]
+  coursesId String
+  contentId String?
+  Content   Content?
+}
+
+model File {
+  key      String  @id @default(cuid())
+  isPublic Boolean @default(true)
+
+  url  String?
+  name String?
+  mime String?
+  size BigInt?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
+  StoreFront     StoreFront[]
+  Courses        Courses[]
+  Downloadable   Downloadable? @relation(fields: [downloadableId], references: [id])
+  downloadableId String?
+  isUploaded     Boolean       @default(false)
+  Video          Video[]
+}
+
+///////END USER SECTION
+model EndUser {
+  id            String  @id @default(cuid())
+  email         String
+  name          String
+  password      String
+  emailVerified Boolean @default(false)
+
+  emailSendExpiryTime      DateTime?
+  forgotPasswordExpiryTime DateTime?
+
+  storeFront   StoreFront @relation(fields: [storeFrontId], references: [id])
+  storeFrontId String
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now()) @updatedAt
+  purchase        Purchase[]
+  content_enduser content_enduser[]
+
+  @@unique([email, storeFrontId])
+}
+
+enum PURCHASE_STATUS {
+  created
+  paid
+  failed
+}
+
+model Purchase {
+  id              String          @id @default(cuid())
+  endUser         EndUser         @relation(fields: [endUserId], references: [id])
+  endUserId       String
+  storeFront      StoreFront      @relation(fields: [storeFrontId], references: [id])
+  storeFrontId    String
+  courses         Courses         @relation(fields: [coursesId], references: [id])
+  coursesId       String
+  orderId         String?         @unique
+  paymentId       String?
+  amount          Int
+  sellersCut      Int
+  currency        String
+  localVerified   Boolean         @default(false)
+  webHookVerified Boolean         @default(false)
+  reason          String?
+  status          PURCHASE_STATUS @default(created)
+  metaData        Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now()) @updatedAt
+
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([endUserId])
+  @@map("purchase")
+}
+
+model content_enduser {
+  id        String   @id @default(cuid())
+  completed Boolean  @default(false)
+  content   Content  @relation(fields: [contentId], references: [id])
+  endUser   EndUser  @relation(fields: [endUserId], references: [id])
+  contentId String
+  endUserId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([contentId, endUserId])
+}

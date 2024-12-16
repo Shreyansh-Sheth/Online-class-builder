@@ -1,0 +1,30 @@
+{
+  "name": "@tutor/validation",
+  "version": "0.0.1",
+  "description": "> TODO: description",
+  "author": "Shreyansh-Sheth <shethshreyansh777@gmail.com>",
+  "homepage": "",
+  "license": "ISC",
+  "main": "lib/index.ts",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "test": "node ./__tests__/validation.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.15",
+    "@types/underscore": "^1.11.4",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^4.8.2"
+  },
+  "dependencies": {
+    "@tutor/db": "^0.0.0",
+    "underscore": "^1.13.6",
+    "zod": "^3.18.0"
+  }
+}

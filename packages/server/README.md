@@ -1,0 +1,4 @@
+## ENV TO SET
+
+REGISTER_JWT
+
